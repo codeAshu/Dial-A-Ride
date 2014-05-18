@@ -1,0 +1,36 @@
+//The idea is that for each request system will search all the 
+cab which can reach at request location within 60 min.
+
+suitedcab <- List of cabs which can reach at the request location within 60 min
+
+For each valid request {
+
+	if ( ( TimeOfExp - CabTimeStamp)< 60min ) and ( cabOcuupancy < Occupancylimt ) 
+ 	add to suited cab List
+  }
+ 
+ Now for each suitedCab {
+ 	
+ 	// if cab is empty and request is Marked Large or Request originate at the  location of cab at that time than its the best suited cab for the request
+ 	
+ 	if( CabOccupancy ==0 ) 
+		if(request marked 'Long') or (request originate at the cab location)
+		 best cab for the request
+		
+	if(Cab is more than half filled)
+		if(request marked 'Long') or (time to reach at request location <20min)
+		best cab for the request
+
+	//if cab is already occupied, than it has to check weather it will be good to serve the request or not
+	if(CabOccupancy >0 )
+		
+		if cab->destination  lies in the shortest path of new request 
+			best cab for the request
+		
+		if new req->destination lies the shortest path of cab
+			best cab for the request
+			
+		if cab is marked 'Long' means a large request with large revenue
+			Serve the request 
+			 
+			 

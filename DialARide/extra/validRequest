@@ -1,0 +1,10 @@
+
+For each request {
+
+if ( (Time of request < currentTime) && (Time of Exp > currentTime ) 
+&& (request Status != 'C')	 )
+Than add to valid request List 
+
+}
+//return all the valid request of current time
+return List
