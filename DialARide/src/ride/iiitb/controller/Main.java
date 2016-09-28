@@ -1,68 +1,53 @@
 package ride.iiitb.controller;
 
-import static ride.iiitb.controller.InputHandelController.maxTime;
-import static ride.iiitb.controller.InputHandelController.reqList;
+import static ride.iiitb.controller.InputHandleController.maxTime;
+import static ride.iiitb.controller.InputHandleController.reqList;
 
 import java.util.ArrayList;
 
 import ride.iiitb.model.RequestModel;
 
 public class Main {
-
-	/********************************************************************************
-	 * Main()
-	 ********************************************************************************/
 	public static void main(String[] args) {
+	long start = System.currentTimeMillis();
+	InputHandleController in = new InputHandleController();
+	// Read input file and load data into data structures
+	in.readFile(args[0]);
 
-		InputHandelController in = new InputHandelController();
-		in.readFile(args[0]);											//read and load into request master
+	ProcessController pc = new ProcessController();
+	//calculate shortest path matrix
+	pc.calShortestPath();									
 
-		ProcessController pc = new ProcessController();
+	//Calculate length and revenue of the request
+	pc.calcRevAndLength(reqList);
 
-		//calculate shortest path matrix
-		pc.calShortestPath();									
+	//Mark all the long requests and sort the reqID according to them
+	pc.markLongReq(reqList);			
 
-		//Calculate length and revenue of the request
-		pc.calcRevAndLength(reqList);
+	//get average length of an edge
+	pc.getAvgLength();
+	
+	// Initialize current time
+	int currentTime = 1;
+	
+	while(currentTime <maxTime){
+		ArrayList<RequestModel> validRequest = null;
+		
+		// Get all the valid requests at the time
+		validRequest = pc.getValidRequest(reqList,currentTime);			
 
-		//Mark all the long requests and sort the reqID according to it
-		pc.markLongReq(reqList);			
+		// Check suitable cabs for the request
+		pc.suitedCab(validRequest, currentTime);
 
-		//get avg length of an edge
-		pc.getAvgLength();
-		/*
-		for (RequestModel rq : reqList) {
-			System.out.println(rq.getReqID() +" "+rq.getOrigin()+" "+rq.getDest()+" "+rq.getTofReq()+" "+rq.getTofExp());
-		}
-		 */
-		int currentTime = 1;
-		//start the time clock
-		while(currentTime <maxTime){
+		// Update cab details
+		pc.updateCabDetails(currentTime);
 
-			ArrayList<RequestModel> validRequest=null;
-			//	System.out.println("\n\n\ncurrent Time :"+currentTime);
+		currentTime = currentTime+1;
 
-			//get all the valid request of this time
-			validRequest = pc.getValidRequest(reqList,currentTime);			
-
-			/*
-			for (RequestModel requestModel : validRequest) {
-							System.out.println("req :"+ requestModel.getReqID()+" "+ requestModel.getOrigin() +" "+ requestModel.getDest()+ " exp: "+ requestModel.getTofExp()+" rev :"+requestModel.getRev()+" status :"+requestModel.getStatus());
-			}
-			//	System.out.println();
-			 */
-			//check for which cab these requests will suit
-			pc.suitedCab(validRequest,currentTime);
-
-			//update each cab details
-			pc.updateCabDetails(currentTime);
-
-			currentTime = currentTime+1;				//update current time
-
-			validRequest.clear();
-		}
-
-		pc.printResults(args[1]);
+		validRequest.clear();
 	}
-
+	pc.printResults(args[1]);
+	long elapsed = System.currentTimeMillis() - start;
+	System.out.println(String.format("Total elapsed time: %d ms", elapsed));
+	}
 }
