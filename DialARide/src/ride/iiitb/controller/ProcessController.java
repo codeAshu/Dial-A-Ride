@@ -1,5 +1,5 @@
 package ride.iiitb.controller;
-import static ride.iiitb.controller.InputHandelController.*;
+import static ride.iiitb.controller.InputHandleController.*;
 
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
@@ -9,6 +9,12 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import ride.iiitb.model.CabLocationModel;
 import ride.iiitb.model.CabShareModel;
@@ -24,26 +30,44 @@ public class ProcessController {
 	public static int avg = 0;
 
 	public static ArrayList<CabShareModel> shareList = new ArrayList<CabShareModel>(); 
-	static floyd fd = new floyd();
+	static ShortestPath sp = new ShortestPath();
 
 	public static int cabCapacity = c;
 
 
 	/********************************************************************************************
-	 * This method will assign a known high value to the node which are not directly connected
+	 * This method will assign a known high value to the nodes which are not directly connected
 	 ********************************************************************************************/
-	public void replaceToInfi(int[][] array )
+	public void replaceToInfi(int[][] array)
 	{
-		for(int i=0; i<array.length; i++){
-			for(int j=0; j<array.length; j++){
-
-				if(array[i][j] == -1 )
-					if (i == j)
-						array[i][j] =0;
-					else
-						array[i][j] = HighInt;
-			}
+		// parallel implementation
+		//long start = System.currentTimeMillis();
+		ExecutorService exec = Executors.newCachedThreadPool();
+		try {
+			parallelizeReplaceToInfi(8, array, exec);
 		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+		finally {
+			exec.shutdown();
+		}
+		//long elapsed = System.currentTimeMillis() - start;
+		//System.out.println("Replace to infi parallel: " + elapsed);
+		
+		// serial implementation
+//		long start = System.currentTimeMillis();
+//		for(int i = 0; i < array.length; i++){
+//			for(int j = 0; j < array.length; j++){
+//				if(array[i][j] == -1 )
+//					if (i == j)
+//						array[i][j] =0;
+//					else
+//						array[i][j] = HighInt;
+//			}
+//		}
+//		long elapsed = System.currentTimeMillis() - start;
+//		System.out.println("Replace to infi serial: " + elapsed);
 	}
 
 	/********************************************************************
@@ -51,8 +75,8 @@ public class ProcessController {
 	 ********************************************************************/
 	public  static void displayPath(int[][] path)
 	{
-		for(int i=0;i<path.length;i++){
-			for(int j=0;j<path.length;j++){
+		for(int i = 0; i < path.length; i++){
+			for(int j = 0; j < path.length; j++){
 				System.out.print(path[i][j] + " ");
 			}
 			System.out.println("");    
@@ -69,39 +93,31 @@ public class ProcessController {
 
 
 	/*******************************************************************************************
-	 * This method will call Floyed Algorithm to calculate Shortest path Matrix 'shortpath'    *
+	 * This method will call the Floyd Warshall implementation of the shortest path calculation
 	 *******************************************************************************************/
 	public void calShortestPath(){
 
-		n= adjList.size();
-		adjMat = list2Matrix(adjList); 
-		//	ArrayList<Integer> p;
+		n = adjList.size();
+		adjMat = list2Matrix(adjList);
 
 		path = new int[n][n];
 		replaceToInfi(adjMat);
 
-		// Initialise with the previous vertex for each edge. -1 indicates
+		// Initializing with the previous vertex for each edge. -1 indicates
 		// no such vertex.
-		for (int i=0; i<adjMat.length; i++)
-			for (int j=0; j<adjMat.length; j++)
+		for (int i = 0; i < adjMat.length; i++)
+			for (int j = 0; j < adjMat.length; j++)
 				if (adjMat[i][j] == HighInt)
 					path[i][j] = -1;
 				else
 					path[i][j] = i;
 
 		// This means that we don't have to go anywhere to go from i to i.
-		for (int i=0; i<adjMat.length; i++)
+		for (int i = 0; i < adjMat.length; i++)
 			path[i][i] = i;
 
-		floyd fd = new floyd();
-		shortpath = fd.shortestpath(adjMat, path);
-
-		//display Shortest path Metric
-		//	dispShortestMat();
-
-		//p =fd.pathNodes(25, 25, path);
-		//	System.out.println("path from 25 to 25 :"+p.get(0));
-
+		ShortestPath sp = new ShortestPath();
+		shortpath = sp.shortestPath(adjMat, path);
 	}
 
 
@@ -109,79 +125,64 @@ public class ProcessController {
 	 * Utility method to convert ArrayList to 2d array Matrix			   *	
 	 ***********************************************************************/
 	public int[][] list2Matrix(ArrayList<ArrayList<Integer>> adjList) {
-
 		int[][] resultMat = new int[n][n];
-
-		ArrayList<Integer> tempList = new ArrayList<Integer>();
-
-		for(int i = 0 ; i<n; i++){
-			tempList.addAll(adjList.get(i));
-
-			for(int j = 0 ; j<n; j++){
-				resultMat[i][j] = tempList.get(j);
-			}
-			tempList.clear();
+		
+		// Parallel Implementation
+		//long start = System.currentTimeMillis();
+		ExecutorService exec = Executors.newCachedThreadPool();
+		try {
+			parallelizeList2Matrix(8, resultMat, exec);
 		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+		finally {
+			exec.shutdown();
+		}
+		//long elapsed = System.currentTimeMillis() - start;
+		//System.out.println("list2Matrix parallel: " + elapsed);
+		
+		// Serial Implementation
+//		long start = System.currentTimeMillis();
+//		
+//		ArrayList<Integer> tempList = new ArrayList<Integer>();
+//		for(int i = 0; i < n; i++){
+//			tempList.addAll(adjList.get(i));
+//			for(int j = 0; j < n; j++){
+//				resultMat[i][j] = tempList.get(j);
+//			}
+//			tempList.clear();
+//		}
+//		long elapsed = System.currentTimeMillis() - start;
+//		System.out.println("list2Matrix serial: " + elapsed);
 		return resultMat;
 	}
 
-
-	/********************************************************************************
-	 * This method will display Shortest path Matrix Calculated by Floyd Algorithm *
-	 ********************************************************************************/
-	public void dispShortestMat(){	
-
-		// Prints out shortest distances.
-		System.out.println("-----Shortest path Matrix-------");
-		System.out.print("   |");
-		for (int i=0; i<shortpath.length;i++)
-			System.out.print(i +"| ");
-
-		System.out.println("");
-		for (int i=0; i<shortpath.length;i++) {
-			System.out.print("["+i +"] ");
-			for (int j=0; j<shortpath.length;j++)
-				System.out.print(shortpath[i][j]+"  ");
-			System.out.println();
-		}
-		System.out.println("");
-	}
-
-
-
 	/*********************************************************************************************************
-	 * This function will update the location, TimeStamp of each cab and update there status and occupancy 
+	 * This function will update the location, TimeStamp, status and occupancy of cabs 
 	 * @param CabLocationModel
 	 *********************************************************************************************************/
 	public void updateCabDetails(int currentTime)
 	{
 		char waitFlag = 'N';
 		for(CabLocationModel clm : cabLocList) {
-
 			if(currentTime >= clm.getTimestamp()){
-
 				if(clm.getOccupancy() == 0){
-				//	System.out.println("cab "+clm.getCab() +"  Timer is "+clm.getTimer() + "  next dst is  "+clm.getNextDest());
 					clm.setTimer(clm.getTimer()+1);
 				}
 
-
-				for (CabShareModel shr :shareList) {										 //get details of each cab against each shareList entry
-
-					if(clm.getCab() == shr.getcl().getCab() &&  shr.getStatus() =='R')	//It will give all the req which cab is running at the current time
+				for (CabShareModel shr :shareList) {										 // Get details of each cab against each shareList entry
+					if(clm.getCab() == shr.getcl().getCab() &&  shr.getStatus() =='R')		//It will give all the request which the cab is running at the time
 					{
-
-						//check if its final destination of one of the request of the cab or not
+						// check if the final destination is one of the requests of the cab or not
 						if(clm.getLocation() == shr.getRm().getDest() )
 						{
-							shr.getRm().setDrop(clm.getTimestamp());				//set drop timings
-
+							shr.getRm().setDrop(clm.getTimestamp());
 							clm.setOccupancy(clm.getOccupancy()-1);
-
-							shr.setStatus('C');										//close the request
+							shr.setStatus('C');
 						}
 
-						//if any request is waiting for more than 1 hour and it is not been shared still it will move on
+						// if a request has been waiting for more than 1 hour and hasn't been shared, it will move on
 						if( ( (clm.getLocation() == shr.getRm().getOrigin()) && ( (clm.getTimestamp() - shr.getRm().getPic()) >60) )
 								|| (clm.getLocation() == shr.getRm().getDest()) && ( (clm.getTimestamp() - shr.getRm().getDrop() >60) ) )
 						{
@@ -190,20 +191,17 @@ public class ProcessController {
 					}
 					
 				}
-				//If a cab  is sitting idea for 1 hour than send it some other good place 
+				// If a cab  is sitting idle for over an hour, move it to a better place 
 				if(clm.getTimer() >60)
 				{
-					//get a good place to send this cab
-					//System.out.println("get a good place cab "+clm.getCab());
+					// get a better place for the cab
 					whereToMove(clm);
 					if(clm.getNextDest() !=-1)
 						waitFlag = 'Y';
-
 				}
 
 				if( (clm.getNextDest() !=-1 && clm.getOccupancy() >(c/2)+1 ) || (waitFlag =='Y' )) 			//move the cab only when you have almost full cab
 				{
-
 					//distance from next destination
 					int d= distance(clm.getLocation(),clm.getNextDest() );
 
@@ -211,15 +209,15 @@ public class ProcessController {
 					clm.setLocation(clm.getNextDest());
 
 					int timestamp = clm.getTimestamp() + 2*d;
-					//update Timestamp
+					
+					// update Timestamp
 					clm.setTimestamp(timestamp);
 
-					//update KM
+					// update KM
 					clm.setKm(clm.getKm()+d);
 
 					//update next destination
-					clm.setNextDest( fd.pathNodes(clm.getNextDest(), clm.getFinalDest(), path).get(1));
-					//System.out.println("cab 's next dest :"+clm.getNextDest());
+					clm.setNextDest( sp.pathNodes(clm.getNextDest(), clm.getFinalDest(), path).get(1));
 					waitFlag = 'N';
 					clm.setTimer(0);
 
@@ -262,22 +260,20 @@ public class ProcessController {
 		}
 
 		if(clist.size() == 0){
-			//System.out.println("no request within 100 min of range");
 			clm.setTimestamp(clm.getTimestamp()+2);
 		}
 		else
 		{
-			//now I have requests which can be served by the cab within 30 min
-
-			//sort them based on revenue
+			// we have requests which can be served by the cab within 30 min
+			// sort them based on revenue
 			Collections.sort(clist, new Comparator<RequestModel>() {
 				@Override public int compare(RequestModel r1, RequestModel r2) {
 					return r1.getRev() - r2.getRev();
 				}});
 
 
-			//now I have closest request to full fill now cab will go in that direction and try to get some space in cab
-			p=fd.pathNodes(clm.getLocation(),clist.get(0).getOrigin(), path);
+			//we have closest request to full fill now cab will go in that direction and try to get some space in cab
+			p = sp.pathNodes(clm.getLocation(),clist.get(0).getOrigin(), path);
 
 			//update Next Destination
 			int NextDest = p.get(1);
@@ -288,7 +284,6 @@ public class ProcessController {
 
 			clist.clear();
 			list.clear();
-			//System.out.println("moving "+clm.getCab()+" to " +clm.getNextDest());
 		}
 
 	}
@@ -323,7 +318,7 @@ public class ProcessController {
 		if(list.size() !=0)
 		{
 			//now I have closest request to full fill now cab will go in that direction and try to get some space in cab
-			p=fd.pathNodes(clm.getLocation(),reqList.get(req).getDest(), path);
+			p = sp.pathNodes(clm.getLocation(),reqList.get(req).getDest(), path);
 
 			//update Next Destination
 			int NextDest = p.get(1);
@@ -344,15 +339,6 @@ public class ProcessController {
 		int tmin = 60;
 		ArrayList<CabLocationModel> list = new ArrayList<CabLocationModel>();
 
-		/*
-		//sort current List based on time of rev
-		Collections.sort(CurrentReqList, new Comparator<RequestModel>() {
-			@Override public int compare(RequestModel r1, RequestModel r2) {
-				return r1.getRev() - r2.getRev();
-
-			}});
-		 */
-
 		for (RequestModel rm : CurrentReqList) {
 			//	CabLocationModel cl = null;
 			tmin = 60;
@@ -368,32 +354,19 @@ public class ProcessController {
 
 						if( t<= (rm.getTofExp()-cab.getTimestamp()) )							//check if cab can reach there in time to serve the request
 						{
-							/*	if(tmin >t)
-						{																	//select the cab which is closest to the request
-							tmin = t; 														//update min and create an object for this cab and its detail
-							cl = cab;
-						}
-							 */
 							if(t<tmin){
-								//		System.out.println(" value of t :"+t);
 								cab.setTimer(t);
 								list.add(cab);											//add all the cab which can be reached to the request in 60 min
-
 							}
 						}
-
 					}
-
 				}
 			}
 
-
 			for (CabLocationModel cl : list) {
-
 				if(reqList.get(rm.getReqID()).getStatus() != 'C') //don't process if request is closed by previous cab
 				{
-
-					//now got the optimum cab for this request
+					// now got the optimum cab for this request
 					if(cl !=null && rm !=null){
 
 						CabShareModel cshare = null;
@@ -401,14 +374,9 @@ public class ProcessController {
 						cshare = checkPath(rm,cl,cl.getTimer());
 
 						if (  (cshare !=null) && !(shareList.contains(cshare.getRm().getReqID())) ){
-
-
-							//	System.out.println(" cab "+cshare.getcl().getCab()+" is serving req :"+cshare.getRm().getReqID()+" and earn :"+cshare.getRm().getRev()+"time to reach: "+t+" cab occp is "+cshare.getcl().getOccupancy()+ " and till now cab has earned "+ cshare.getcl().getRevenue());
 							cshare.setOccup(cshare.getcl().getOccupancy());
 							shareList.add(cshare);															//add share detail to shareList
-
 						}
-
 					}
 				}
 			}
@@ -429,7 +397,7 @@ public class ProcessController {
 
 
 		//here I have a cab detail and request detail 
-		Nodes = fd.pathNodes(rm.getOrigin(), rm.getDest(), path);
+		Nodes = sp.pathNodes(rm.getOrigin(), rm.getDest(), path);
 
 		int nextDest = Nodes.get(1);
 		int finalDest; 
@@ -438,7 +406,7 @@ public class ProcessController {
 		if(cl.getFinalDest() == -1)
 			cl.setFinalDest(rm.getDest());
 		//path of the cab
-		cabPath = fd.pathNodes(cl.getLocation(), cl.getFinalDest(), path);
+		cabPath = sp.pathNodes(cl.getLocation(), cl.getFinalDest(), path);
 
 		//now check if cab is empty just add the customer to the cab
 
@@ -536,9 +504,6 @@ public class ProcessController {
 		cabLocList.get(cl.getCab()).setFinalDest(finalDest);						//cab is empty so final dest of cab is right now the dest of this req
 
 		reqList.get(rm.getReqID()).setStatus('C');									//close the request
-		//	System.out.println("closed the request :"+rm.getReqID());
-
-
 	}
 
 	/*************************************************************************************
@@ -573,7 +538,7 @@ public class ProcessController {
 		}		
 		//calculate no of nodes in each request and update
 		for (RequestModel req : list) {
-			Nodes = fd.pathNodes(req.getOrigin(), req.getDest(), path);
+			Nodes = sp.pathNodes(req.getOrigin(), req.getDest(), path);
 			req.setLength(Nodes.size());
 		}
 
@@ -596,11 +561,6 @@ public class ProcessController {
 		for (int i = 0; i < (3*len)/4; i++) {
 			list.get(i).setStatus('L');
 		}
-		//mark Last 100 requests as small and ignore the requests 
-		/*
-		for(int i = len-1; i>len-200; i--)
-			list.get(i).setStatus('S');
-		 */
 		for (int i = 0; i < reqList.size(); i++) {
 			reqList.get(i).setReqID(i);
 		}
@@ -620,18 +580,17 @@ public class ProcessController {
 			wrt = new BufferedWriter(new OutputStreamWriter(
 					new FileOutputStream(output), "utf-8"));
 
-			wrt.write("\t\t\t\t\t Schedule of Cabs by Ashutosh Trivedi(MT2013030)\n\n");
-
-			int trev=0;
+			wrt.write("\t\t\t\t\t Cab Scheduler Results\n\n");
+			
+			int trev = 0;
+			
 			for (CabLocationModel clm : cabLocList) {
 
 				ArrayList<CabShareModel> cabPrint = new ArrayList<CabShareModel>();
-				int rev=0;
 
-
-				wrt.write("\n\nCab :"+clm.getCab() );
+				wrt.write("\n\nCab: " + clm.getCab() );
 				wrt.write("\n");
-
+				
 				for (CabShareModel cs : shareList) {
 					if(clm.getCab() == cs.getcl().getCab())
 						cabPrint.add(cs);
@@ -641,31 +600,39 @@ public class ProcessController {
 					@Override public int compare(CabShareModel r1, CabShareModel r2) {
 						return r1.getRm().getPic() - r2.getRm().getPic();
 					}});
-
-				for(int time =1; time<maxTime; time++)
-				{
-					for (CabShareModel cp : cabPrint) {
-
-						if(time == cp.getRm().getPic())
-							wrt.write("(L:"+cp.getRm().getOrigin()+",T:"+ cp.getRm().getPic()+",Pick)  ");
-
-						if(time == cp.getRm().getDrop())
-							wrt.write("(L:"+cp.getRm().getDest()+",T:"+ cp.getRm().getDrop()+",Drop)  ");
-
-						rev=rev+cp.getRm().getRev();
-					}
+				
+				// Parallelization of printing of cab results
+				ExecutorService exec = Executors.newCachedThreadPool();
+				try {
+					parallelizePrintCabResults(8, cabPrint, wrt, exec);
 				}
+				catch(Exception e) {
+					System.out.println(e.getMessage());
+				}
+				finally {
+					exec.shutdown();
+				}
+				
+				// Serial Implementation
+//				for(int time = 1; time < maxTime; time++)
+//				{
+//					for (CabShareModel cp : cabPrint) {
+//						
+//						if(time == cp.getRm().getPic())
+//							wrt.write("(L: " + cp.getRm().getOrigin() + " ,T: " + cp.getRm().getPic() + " ,Pick)  ");
+//
+//						if(time == cp.getRm().getDrop())
+//							wrt.write("(L: " + cp.getRm().getDest() + " ,T: " + cp.getRm().getDrop() + " ,Drop)  ");
+//					}
+//				}
 
 				wrt.write("\n");	
-				wrt.write("\nRevenue of Cab  is :"+clm.getRevenue());
+				wrt.write("\nRevenue of Cab: " + clm.getRevenue());
 				wrt.write("\n----------------------------------------------------------------------------------------------------------------------------------");
-				//System.out.println("\n\nKm run by cab is "+clm.getKm());
-				//System.out.println("Dead Km are      "+clm.getDeadKM());
-
-				trev = trev+clm.getRevenue();
+				trev = trev + clm.getRevenue();
 			}
 
-			wrt.write("\n\nTotal Revenue is :"+trev);
+			wrt.write("\n\nTotal revenue: " + trev);
 
 			int i=0;		
 			for (RequestModel requestModel : reqList) {
@@ -674,9 +641,8 @@ public class ProcessController {
 					i++;
 
 				}
-				//System.out.println("reqest :"+requestModel.getReqID()+" status "+requestModel.getStatus());
 			}
-			wrt.write("\nTotal Request Served is :"+i);
+			wrt.write("\nTotal requests served: "+i);
 		} catch (IOException ex) {
 			// report
 		} finally {
@@ -695,13 +661,10 @@ public class ProcessController {
 
 		int a=0;
 		for (RequestModel rq : reqList) {
-			ArrayList<Integer> node = fd.pathNodes(rq.getOrigin(), rq.getDest(), path);		
+			ArrayList<Integer> node = sp.pathNodes(rq.getOrigin(), rq.getDest(), path);		
 			a = a + reqList.get(0).getRev() / (node.size()-1);
 		}
-		avg = a/reqList.size() ;
-		//System.out.println("avg length :"+ avg);
-
-
+		avg = a/reqList.size();
 	}
 
 
@@ -716,5 +679,162 @@ public class ProcessController {
 
 		return ed/riDistance;
 
+	}
+	
+	/*******************************************************************************************************
+	 * This method is the parallel implementation of the function replaceToInfi
+	 *******************************************************************************************************/
+	public void parallelizeReplaceToInfi(int numThreads, int[][] array, ExecutorService exec){
+		
+		List<Callable<Boolean>> tasks = new ArrayList<Callable<Boolean>>();
+			 
+		for(int t = 0; t < numThreads; t++){ 
+			int start = (t * array.length) / numThreads; 
+			int end = ((t+1) * array.length) / numThreads; 
+			tasks.add(new ParallelReplaceToInfi(start, end, array));
+		}			
+		try {
+			List<Future<Boolean>> results = exec.invokeAll(tasks);
+			for(Future<Boolean> result : results){ 
+				if(result.get().equals(false)){ 
+					throw new RuntimeException(); 
+				} 
+			} 
+		} catch (InterruptedException e) { 
+			throw new RuntimeException(e); 
+		} catch (ExecutionException e) { 
+			throw new RuntimeException(e); 
+		}
+	}
+	
+	private class ParallelReplaceToInfi implements Callable<Boolean>{
+
+		private final int start;
+		private final int end;
+		private final int[][] array;
+
+		public ParallelReplaceToInfi(int start, int end, int[][] array){ 
+			this.start = start;
+			this.end = end;
+			this.array = array;
+		}
+
+		@Override public synchronized Boolean call() throws Exception { 
+			for(int i = start; i < end; i++){				
+				for(int j = 0; j < array.length; j++){
+					if(array[i][j] == -1 )
+						if (i == j)
+							array[i][j] =0;
+						else
+							array[i][j] = HighInt;
+				}
+			}
+		return true;
+		}
+	}
+	
+	/*******************************************************************************************************
+	 * This method is the parallel implementation of the function list2Matrix
+	 *******************************************************************************************************/
+	public void parallelizeList2Matrix(int numThreads, int[][] resultMat, ExecutorService exec){
+		
+		List<Callable<Boolean>> tasks = new ArrayList<Callable<Boolean>>();
+			 
+		for(int t = 0; t < numThreads; t++){ 
+			int start = (t * adjList.size()) / numThreads; 
+			int end = ((t+1) * adjList.size()) / numThreads; 
+			tasks.add(new ParallelList2Matrix(start, end, resultMat));
+		}			
+		try {
+			List<Future<Boolean>> results = exec.invokeAll(tasks);
+			for(Future<Boolean> result : results){ 
+				if(result.get().equals(false)){ 
+					throw new RuntimeException(); 
+				} 
+			} 
+		} catch (InterruptedException e) { 
+			throw new RuntimeException(e); 
+		} catch (ExecutionException e) { 
+			throw new RuntimeException(e); 
+		}
+	}
+	
+	private class ParallelList2Matrix implements Callable<Boolean>{
+
+		private final int start;
+		private final int end;
+		private int[][] resultMat;
+
+		public ParallelList2Matrix(int start, int end, int[][] resultMat){ 
+			this.start = start;
+			this.end = end;
+			this.resultMat = resultMat;
+		}
+
+		@Override public synchronized Boolean call() throws Exception { 
+			ArrayList<Integer> tempList = new ArrayList<Integer>();
+			for(int i = start; i < end; i++){
+				tempList.addAll(adjList.get(i));
+				for(int j = 0; j < n; j++){
+					resultMat[i][j] = tempList.get(j);
+				}
+				tempList.clear();
+			}
+		return true;
+		}
+	}
+	
+	/*******************************************************************************************************
+	 * This method is the parallel implementation of a part of the function printResults
+	 *******************************************************************************************************/
+	public void parallelizePrintCabResults(int numThreads, ArrayList<CabShareModel> cabPrint, Writer wrt, ExecutorService exec){		
+		List<Callable<Boolean>> tasks = new ArrayList<Callable<Boolean>>();			 
+		for(int t = 0; t < numThreads; t++){ 
+			int start = (t * maxTime) / numThreads; 
+			int end = ((t+1) * maxTime) / numThreads; 
+			tasks.add(new ParallelPrintCabResults(start, end, wrt, cabPrint));
+		}			
+		try {
+			List<Future<Boolean>> results = exec.invokeAll(tasks);
+			for(Future<Boolean> result : results){ 
+				if(result.get().equals(false)){ 
+					throw new RuntimeException(); 
+				} 
+			} 
+		} catch (InterruptedException e) { 
+			throw new RuntimeException(e); 
+		} catch (ExecutionException e) { 
+			throw new RuntimeException(e); 
+		}
+	}
+	
+	private class ParallelPrintCabResults implements Callable<Boolean>{
+
+		private final int start;
+		private final int end;
+		private ArrayList<CabShareModel> cabPrint;
+		private Writer wrt;
+
+		public ParallelPrintCabResults(int start, int end, Writer wrt, ArrayList<CabShareModel> cabPrint){ 
+			this.start = start;
+			this.end = end;
+			this.cabPrint = cabPrint;
+			this.wrt = wrt;
+		}
+
+		@Override public synchronized Boolean call() throws Exception { 
+			for(int time = start; time < end; time++)
+			{
+				for (CabShareModel cp : cabPrint) {
+					
+					if(time == cp.getRm().getPic())
+						wrt.write("(L: " + cp.getRm().getOrigin() + " ,T: " + cp.getRm().getPic() + " ,Pick)  ");
+
+					if(time == cp.getRm().getDrop())
+						wrt.write("(L: " + cp.getRm().getDest() + " ,T: " + cp.getRm().getDrop() + " ,Drop)  ");
+				}
+			}
+		return true;
+		}
 	}
 }
